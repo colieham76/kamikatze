@@ -16,10 +16,6 @@ Object.defineProperty(OwnedStructure.prototype, "memory", {
 	enumerable: false
 });
 
-StructureController.prototype.isEnemyReserved = function() {
-    return (this.reservation && this.reservation.username != "KamiKatze");
-}
-
 Structure.prototype.getStoreHighestMineral = function() {
     if (!this.store) return false;
     let returnvalue = false;

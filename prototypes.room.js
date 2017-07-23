@@ -45,7 +45,7 @@ Room.prototype.areThereEnemies = function() {
 }
 
 Room.prototype.areThereEnemyConstructionSites = function() {
-    return (this.find(FIND_HOSTILE_CONSTRUCTION_SITES, {filter: c => (Memory.friendly.indexOf(c.owner.username) == -1 && Memory.allied.indexOf(c.owner.username) == -1 && c.progress > 0)}).length > 0);
+    return (this.find(FIND_HOSTILE_CONSTRUCTION_SITES, {filter: c => (Memory.friendly.indexOf(c.owner.username) == -1 && Memory.allied.indexOf(c.owner.username) == -1)}).length > 0);
 }
 
 Room.prototype.isMineClaimed = function() {
@@ -81,7 +81,7 @@ Room.prototype.isSK = function() {
 
 Room.prototype.addToAvoidList = function() {
     if (Memory.avoid.indexOf(this.name) === -1) {
-        Memory.avoid = Memory.avoid.push(this.name);
+        Memory.avoid = Memory.avoid.concat(this.name);
         delete Memory.roomroute;
         delete Memory.priorityOfRooms;
         delete Memory.jobfindroutecache;
@@ -94,9 +94,6 @@ Room.prototype.buildPlannedRoad = function() {
         Memory.whitelistrooms.indexOf(this.name) === -1
         && !this.isHighway()
     ) {
-        return false;
-    }
-    if (this.isMineClaimed() && this.controller.level < 3) {
         return false;
     }
     if (Game.flags['donotrepairroads'] && Game.flags['donotrepairroads'].pos.roomName == this.name) return false;

@@ -12,8 +12,6 @@ var squadQueueManager = {
     },
     addToQueue: function(roomName,role,body,queueamount,memory={},prio=-1) {
         let debug = false;
-        //if (role == 'slave')
-        //    debug = true;
         Memory.spawnqueue[roomName]       = Memory.spawnqueue[roomName] || {};
         Memory.spawnqueue[roomName][role] = Memory.spawnqueue[roomName][role] || [];
         if (queueamount <= 0 || !body) {
@@ -49,7 +47,6 @@ var squadQueueManager = {
     checkQueue: function() {
         let start = Game.cpu.getUsed();
         Memory.spawnqueue = {};
-        console.log('checking spawnQueue')
         let spawnrooms = Game.my.managers.strategy.getCoreRooms();
         for(let key in spawnrooms) {
             let roomname = spawnrooms[key];
@@ -84,7 +81,7 @@ var squadQueueManager = {
                     upgraderNeeded = Math.min(5,upgraderNeeded);
                     this.addToQueue(room.name,"upgrader",this.getUpgraderBody(room),upgraderNeeded-upgraderInThisRoom);
                     if (upgraderNeeded > 0) {
-                        if (!room.memory.upgraderpathTime || room.memory.upgraderpathTime < Game.time - 2500) {
+                        if (room.memory.upgraderpathTime < Game.time - 2500) {
                             delete room.memory.upgraderpath;
                             room.memory.upgraderpathTime = Game.time;
                         }
@@ -144,8 +141,6 @@ var squadQueueManager = {
                                 return costs;
                               }
                             });
-
-                            paths.path.unshift(startPos);
                             room.memory.upgraderpath = paths.path;
                         }
                         let distance = room.memory.upgraderpath.length;
@@ -179,7 +174,7 @@ var squadQueueManager = {
             }
             // Do I need room slaves in this room?
             let roomslavesamount = 2;
-            if (!room.storage || room.storage.structureType == STRUCTURE_CONTAINER) {
+            if (room.controller.level <= 3) {
                 roomslavesamount = 4;
             }
             let slavesInThisRoom = _.filter(Game.my.creeps.slave, (creep) => creep.memory.roomslave == room.name).length;
@@ -190,6 +185,7 @@ var squadQueueManager = {
             } else {
                 this.addToQueue(room.name,"slave",this.getSlaveBody(room),roomslavesneeded - slavesInThisRoom,{roomslave: room.name});
             }
+            
             // are Squad Units requested from this room specificly?
             Memory.squadsmetaroom = Memory.squadsmetaroom || {};
             Memory.squadsmetaroom[room.name] = Memory.squadsmetaroom[room.name] || {};
@@ -324,13 +320,10 @@ var squadQueueManager = {
             var reserversforroom = _.filter(Game.my.creeps.reserver, (creep) => creep.memory.target == reservingroomname);
             if (reserversforroom.length == 0) {
                 let sourceSpawn = cachedSearch.nearbySpawn(reservingroomname,25,25,1300);
-                // is false if there is no "big enough" spawn
-                if (sourceSpawn) {
-                    let room = Game.spawns[sourceSpawn].room;
-                    let prio = Game.my.managers.infrastructure.getRoomPathsLengthSimple(reservingroomname,room.name);
-                    if (prio <= 4) {
-                        this.addToQueue(room.name,"reserver",this.getReserverBody(room),1,{target: reservingroomname},prio);
-                    }
+                let room = Game.spawns[sourceSpawn].room;
+                let prio = Game.my.managers.infrastructure.getRoomPathsLengthSimple(reservingroomname,room.name);
+                if (prio <= 4) {
+                    this.addToQueue(room.name,"reserver",this.getReserverBody(room),1,{target: reservingroomname},prio);
                 }
             }
         }
@@ -467,9 +460,7 @@ var squadQueueManager = {
     getSquadbuddyBody: function(room) {
         let highestspawnlevel = Game.my.managers.strategy.getHighestSpawnLevel();
         let squadbuddybody          = [TOUGH,TOUGH,TOUGH,TOUGH,TOUGH,TOUGH,TOUGH,TOUGH,TOUGH,TOUGH,MOVE,MOVE,MOVE,MOVE,MOVE,MOVE,MOVE,MOVE,MOVE,MOVE,MOVE,MOVE,MOVE,MOVE,MOVE,MOVE,MOVE,MOVE,MOVE,MOVE,MOVE,MOVE,MOVE,MOVE,MOVE,HEAL,HEAL,HEAL,HEAL,HEAL,HEAL,HEAL,HEAL,HEAL,HEAL,HEAL,HEAL,HEAL,HEAL,HEAL];
-        if (highestspawnlevel == 3) { // 800
-            squadbuddybody     = [MOVE,MOVE,HEAL,HEAL];
-        } else if (highestspawnlevel == 4) { // 1300
+        if (highestspawnlevel == 4) { // 1300
             squadbuddybody     = [MOVE,MOVE,MOVE,MOVE,HEAL,HEAL,HEAL,HEAL];
         } else if (highestspawnlevel == 5) { // 1800
             squadbuddybody     = [MOVE,MOVE,MOVE,MOVE,MOVE,MOVE,HEAL,HEAL,HEAL,HEAL,HEAL,HEAL];
@@ -533,10 +524,10 @@ var squadQueueManager = {
         let slavebodypart       = [MOVE,WORK,CARRY];
         let energy = SPAWN_ENERGY_CAPACITY + CONTROLLER_STRUCTURES.extension[Math.max(room.controller.level-1,0)] * EXTENSION_ENERGY_CAPACITY[Math.max(room.controller.level-1,0)];
         if (scope == "room") {
-            energy = room.energyCapacityAvailable;
-            if (Game.my.creeps.slave.length < Memory.population.slave / 2) {
-                energy = room.energyAvailable;
-            }
+            energy = room.energyCapacityAvailable
+        }
+        if (Game.my.creeps.slave.length < Memory.population.slave / 2) {
+            energy = room.energyAvailable;
         }
 
         var bodysize = Math.min(Math.floor(energy / this.bodycost(slavebodypart)),Math.floor(50/slavebodypart.length));

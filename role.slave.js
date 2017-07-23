@@ -65,7 +65,6 @@ var roleSlave = {
                         deletemyjob = true;
                         if (myjob.meta2 == 0) {
                             console.log(creep.name+' > pickup_mineral > meta 2 == 0');
-                            debug = true;
                             let key = false;
                             let found = false;
                             if (debug) console.log("checking for general job in this room");
@@ -78,7 +77,6 @@ var roleSlave = {
                                     creep.memory.job = potentialJobs[0].jobkey;
                                 }
                                 key = mineral.getStoreHighestMineral();
-                                found = true;
                             } else {
                                 if (debug) console.log("checking for specific jobs in this room");
                                 for(key in mineral.store) {
@@ -257,7 +255,6 @@ var roleSlave = {
                     deletejob = true;
                 } else {
                     if (creep.pos.inRangeTo(source,1)) {
-                        creep.cancelOrder('repair');
                         creep.harvest(source);
                     } else {
                         creep.movePredefined(source.pos,{range: 1});
@@ -406,7 +403,6 @@ var roleSlave = {
                 deletejob = true;
             } else {
                 if (creep.pos.inRangeTo(target,3)  && !creep.isOnExit()) {
-                    myjob.meta2 = target.hits;
                     var result = creep.repair(target);
                     if(result != OK) {
                         deletemyjob = true;
@@ -560,8 +556,8 @@ var roleSlave = {
                         Game.my.managers.jobFinder.getJobtypeFromID(creep.memory.job)
                     )
                 ][creep.memory.job];
-                creep.say((creep.memory.roomslave?"R ":"")+Game.my.managers.jobFinder.jobtypeToIcon(myjob.jobtype));
-//                creep.say(Game.my.managers.jobFinder.jobtypeToIcon(myjob.jobtype)+(creep.memory.roomslave?" R":"")+" "+_.sum(creep.carry)+"/"+creep.carryCapacity);
+//                    creep.say(Game.my.managers.jobFinder.jobtypeToText(myjob.jobtype));
+                creep.say(Game.my.managers.jobFinder.jobtypeToIcon(myjob.jobtype)+(creep.memory.roomslave?" R":"")+" "+_.sum(creep.carry)+"/"+creep.carryCapacity);
                 let result = {deletejob: false, deletemyjob: false};
                 if (myjob.jobtype == PICKUP_ENERGY) {
                     result = this.pickup_energy(creep,myjob);

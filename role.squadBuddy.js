@@ -6,9 +6,9 @@ var roleSquadBuddy = {
         //console.log(creep.name+" is a defender and is in "+creep.room.name);
         creep.notifyWhenAttacked(false);
         var debug = false;
-//        if (creep.name == 'squadbuddy-6') {
+        if (creep.name == 'squadbuddy-6') {
             debug = true;
-//        }
+        }
         if (debug) console.log('Master, '+creep.name+' ('+creep.memory.role+') reporting for duty!');
         if (creep.memory.buddy && !Game.creeps[creep.memory.buddy]) {
             delete creep.memory.buddy;
@@ -39,6 +39,9 @@ var roleSquadBuddy = {
                     } else {
                         // i healed myself, so i reset result, so that i move to my buddy
                         // but only if i'm not on a exit tile...
+                        if (!creep.isOnExit()) {
+                            result = false;
+                        }
                     }
                 }
             } else {
@@ -48,18 +51,7 @@ var roleSquadBuddy = {
             if (!result)    {
                 let targetpos = false;
                 let secondleveltargetpos = false;
-                if (
-                    // there is a tmpbuddy
-                    creep.memory.tmpbuddy 
-                    // its alive
-                    && Game.creeps[creep.memory.tmpbuddy] 
-                    // its in the same room
-                    && Game.creeps[creep.memory.tmpbuddy].room.name == creep.room.name 
-                    // and its not outdated
-                    && creep.memory.tmpbuddytime > Game.time - 10 
-                    // and its not on an exit
-                    && !Game.creeps[creep.memory.tmpbuddy].isOnExit()
-                ) {
+                if (creep.memory.tmpbuddy && Game.creeps[creep.memory.tmpbuddy] && Game.creeps[creep.memory.tmpbuddy].room.name == creep.room.name && creep.memory.tmpbuddytime > Game.time - 10) {
                     if (debug) console.log("Master, I'll cuddle with my temporary buddy!");
                     targetpos = Game.creeps[creep.memory.tmpbuddy].pos;
                 } else {
@@ -67,12 +59,13 @@ var roleSquadBuddy = {
                     targetpos = Game.creeps[creep.memory.buddy].pos;
                 }
                 if (debug) console.log("Master, my cuddle partner is at "+targetpos);
-                let range = 0;
-                if (targetpos.isExit()) {
-                    range = 1;
+                if (!targetpos.isExit()) {
+                    result = creep.movePredefined(targetpos,{avoid:false,noShortCuts:true,range:0});
+//                    creep.say('moveto');
+                    if (debug) console.log("Master, my movePredefined result is: "+result);
+                } else {
+                    if (debug) console.log("Master, I'm not following my cuddle partner, because he is on a exit");
                 }
-                result = creep.movePredefined(targetpos,{avoid:false,noShortCuts:true,range:range});
-                if (debug) console.log("Master, my movePredefined result is: "+result);
            }
         } else {
             result = creep.Medic();

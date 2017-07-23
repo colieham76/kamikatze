@@ -66,7 +66,6 @@ var creepManager = {
             role = roles[role];
             for(let key in Game.my.creeps[role]) {
                 let creep = Game.my.creeps[role][key];
-                if (creep.idle) continue;
                 try {
                     let start = Game.cpu.getUsed();
                     if (creep.ticksToLive) {

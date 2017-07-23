@@ -169,10 +169,7 @@ const cachedSearch = {
                 }
             }
         }
-        if (returnSpawn)
-            return this.spawnsOfRoom(returnSpawn)[0].name;
-        else
-            return false;
+        return this.spawnsOfRoom(returnSpawn)[0].name;
 	},
 
     getSearchCache: function(cachename, cachekey, useMemory = Memory) {

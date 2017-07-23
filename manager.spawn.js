@@ -122,11 +122,11 @@ var spawnManager = {
                 'squadsiegereserver',
                 'claimer',
                 'slave',
-                'harvesterHauler',
-                'harvester',
                 'upgraderHauler',
                 'upgrader',
                 'hauler',
+                'harvesterHauler',
+                'harvester',
                 'extractor',
                 'reserver',
                 'scout',
@@ -134,17 +134,6 @@ var spawnManager = {
                 'powerHarvesterHealer',
                 'powerHarvesterHauler'
             ];
-            if (Game.my.creeps['slave'].length < 5) {
-                // emergency mode:
-                roles = [
-                    'transporter',
-                    'slave',
-                    'harvesterHauler',
-                    'harvester',
-                    'upgraderHauler',
-                    'upgrader',
-                ];
-            }
             let brea = false;
             for(let role of roles) {
                 let conti = true;
@@ -194,7 +183,7 @@ var spawnManager = {
                                 console.log('<span style="color:#FF0000">'+spawn.room.name+' has not enough resources for new ' + role + ' (' + this.bodycost(body) + ', room, '+Memory.spawnqueue[spawn.room.name][role][0].prio+')</span>');
                             }
                         } else {
-                            console.log('<span style="color:#FF0000">'+spawn.room.name+' has a too big creep in its queue: ' + role + ' (' + this.bodycost(body) + ', room, '+Memory.spawnqueue[spawn.room.name][role][0].prio+') with canCreateCreep result: '+spawn.canCreateCreep(body, name)+'</span>');
+                            console.log('<span style="color:#FF0000">'+spawn.room.name+' has a too big creep in its queue: ' + role + ' (' + this.bodycost(body) + ', globalhigh, '+Memory.spawnqueue["globalhigh"][role][0].prio+') with canCreateCreep result: '+spawn.canCreateCreep(body, name)+'</span>');
                           if (debug) console.log('Size does matter after all... '+this.bodycost(body));
                         }
                     }
@@ -349,14 +338,11 @@ var spawnManager = {
                 }
             }
         }
-        if (Memory.skipSpawnsUntil <= Game.time) {
-            if (setSkipTime) {
-    //            console.log("spawnLowestSpawning > "+Game.my.spawnLowestSpawning);
-                if (Game.my.spawnLowestSpawning == 9999999) Game.my.spawnLowestSpawning = 0;
-                Memory.skipSpawnsUntil = Game.time + Math.min(25,Game.my.creepLowestTTL,Game.my.spawnLowestSpawning);
-            } else {
-                Memory.skipSpawnsUntil = Game.time;
-            }
+        if (setSkipTime) {
+            if (Game.my.spawnLowestSpawning == 9999999) Game.my.spawnLowestSpawning = 0;
+            Memory.skipSpawnsUntil = Game.time + Math.min(25,Game.my.creepLowestTTL,Game.my.spawnLowestSpawning);
+        } else {
+            Memory.skipSpawnsUntil = Game.time;
         }
         console.log("skipping spawns for "+(Memory.skipSpawnsUntil-Game.time));
     },
@@ -431,7 +417,7 @@ var spawnManager = {
         for(let key in Memory.jobrooms) {
             let roomname = Memory.jobrooms[key];
             if (Game.rooms[roomname] && Game.rooms[roomname].isMine()) {
-                if (!Game.rooms[roomname].isHighway()) {
+                if (roomname.substr(2,1) != 0 && roomname.substr(5,1) != 0) {
                     if (Game.rooms[roomname].isSK()) {
                         let sksquads = _.filter(Memory.squads,s => s.targetRoom == roomname && s.modus == "combat");
                         if (sksquads.length > 0) {
@@ -648,45 +634,37 @@ var spawnManager = {
             }
             console.log('There are '+room.my.enemies.length+' enemies in room ' + room.name + ' from ' + room.my.enemies[0].owner.username);
             if (!room.my.enemies[0].pos.isExit() && room.find(FIND_STRUCTURES,{filter: (s) => s.structureType == STRUCTURE_TOWER && !s.my}).length == 0) {
-                if (
-                    room.my.enemies[0].owner.username != "Source Keeper"
-                    && !Game.my.managers.strategy.isFriendly(room.my.enemies[0].owner.username)
-                ) {
+                if (room.my.enemies[0].owner.username != "Source Keeper") {
                     Game.my.managers.strategy.sendDefenseSquad(room.my.enemies[0].pos);
                 }
             }
             if (
                 room.my.enemies[0].owner.username != "Invader" 
                 && room.my.enemies[0].owner.username != "Source Keeper" 
-                && !Game.my.managers.strategy.isFriendly(room.my.enemies[0].owner.username)
-                && !room.controller.safeMode
+                && Memory.friendly.indexOf(room.my.enemies[0].owner.username) === -1
+                && Memory.allied.indexOf(room.my.enemies[0].owner.username) === -1
             ) { 
                 // awake the spawns
                 Memory.skipSpawnsUntil = 0;
-                if (Game.my.managers.strategy.getHighestSpawnLevel() >= 5) {
-                    delete Memory.squads['0'].configsquadsize['squadsk'];
-                    Memory.squads['0'].configsquadsize['squadskirmisher'] = Math.min(3,room.my.enemies.length);
-                    Memory.squads['0'].configsquadsize['squadbuddy'] = Math.min(3,room.my.enemies.length);
-                    Game.notify('Master! There are '+room.my.enemies.length+' enemies in room ' + room.name + ' from ' + room.my.enemies[0].owner.username); 
-                    if (Game.flags['squad0target'])
-                        Game.flags['squad0target'].setPosition(room.my.enemies[0].pos);
+                delete Memory.squads['0'].configsquadsize['squadsk'];
+                Memory.squads['0'].configsquadsize['squadskirmisher'] = room.my.enemies.length;
+                Memory.squads['0'].configsquadsize['squadbuddy'] = room.my.enemies.length;
+                Game.notify('Master! There are '+room.my.enemies.length+' enemies in room ' + room.name + ' from ' + room.my.enemies[0].owner.username); 
+                Game.flags['squad0target'].setPosition(room.my.enemies[0].pos);
+                let nearbyspawn = cachedSearch.nearbySpawn(room.my.enemies[0].pos.roomName,room.my.enemies[0].pos.x,room.my.enemies[0].pos.y);
+                nearbyspawn = Game.spawns[nearbyspawn];
+                Game.flags['squad0staging'].setPosition(nearbyspawn.pos);
+                if (nearbyspawn.room.controller.level === 8) {
+                    // lvl 8 are strong enough to spawn their own defense
+                    if (Game.flags['squad0recruiting'])
+                        Game.flags['squad0recruiting'].setPosition(nearbyspawn.pos);
                     else
-                        room.my.enemies[0].pos.createFlag('squad0target');
-                    let nearbyspawn = cachedSearch.nearbySpawn(room.my.enemies[0].pos.roomName,room.my.enemies[0].pos.x,room.my.enemies[0].pos.y);
-                    nearbyspawn = Game.spawns[nearbyspawn];
-                    Game.flags['squad0staging'].setPosition(nearbyspawn.pos);
-                    if (nearbyspawn.room.controller.level === 8) {
-                        // lvl 8 are strong enough to spawn their own defense
-                        if (Game.flags['squad0recruiting'])
-                            Game.flags['squad0recruiting'].setPosition(nearbyspawn.pos);
-                        else
-                            nearbyspawn.pos.createFlag('squad0recruiting');
-                    } else {
-                        if (Game.flags['squad0recruiting'])
-                            Game.flags['squad0recruiting'].remove();
-                    }
-                    strategyManager.revive(0);
+                        nearbyspawn.pos.createFlag('squad0recruiting');
+                } else {
+                    if (Game.flags['squad0recruiting'])
+                        Game.flags['squad0recruiting'].remove();
                 }
+                strategyManager.revive(0);
             }
         }
     },
@@ -698,7 +676,7 @@ var spawnManager = {
         });
         if (containers.length > 0) {
             for(let key in containers) {
-                let energy = containers[key].pos.findInRange(FIND_DROPPED_RESOURCES,0);
+                let energy = containers[key].pos.findInRange(FIND_DROPPED_RESOURCES,1);
                 let amount = containers[key].store[RESOURCE_ENERGY];
                 let stats = "";
                 if (energy.length > 0) {
@@ -752,12 +730,11 @@ var spawnManager = {
         var energy = room.find(FIND_DROPPED_RESOURCES);
         if (energy.length > 0) {
             for(let key in energy) {
-                if (energy[key].pos.findInRange(FIND_STRUCTURES,0,{filter: (s) => s.structureType == STRUCTURE_CONTAINER}).length == 0) {
+                if (energy[key].pos.findInRange(FIND_STRUCTURES,1,{filter: (s) => s.structureType == STRUCTURE_CONTAINER}).length == 0) {
                     let stats = room.name + " > Energy";
                     stats = stats + " > laying arount " +energy[key].amount;
                     let amount = energy[key].amount;
                     let jobkey = room.name+"$"+energy[key].pos.x+"x"+energy[key].pos.y+"$1"
-                    console.log(jobkey);
                     let job = Memory.jobs[jobFinder.getQueueForJobtype(jobFinder.getJobtypeFromID(jobkey))][jobkey];
                     let color = "#FF0000";
                     if (job) {
@@ -774,7 +751,6 @@ var spawnManager = {
                     } else
                         stats = stats + " > nojob";
                     this.output = this.output.concat({amount: amount, output: '<span style="color:'+color+'">'+stats+'</span>'});
-                    
                     Memory.energylayingaround += energy[key].amount;
                 }
             }

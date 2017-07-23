@@ -392,14 +392,14 @@ var jobFinder = {
 
     fillJobQueueUpgradeController: function(room) {
         if (room.controller) {
-            if (room.controller.my && room.controller.level < 8) {
+            if (room.controller.my) {
                 this.addJobIfNotExists(UPGRADE_CONTROLLER,room.name,room.controller.pos.x,room.controller.pos.y,room.controller.id);
             }
         }
     },
 
     fillJobQueueHarvestEnergy: function(room) {
-        if (room.controller && !room.controller.isEnemyReserved()) {
+        if (room.controller /* && room.controller.my*/) {
             var mysources = cachedSearch.sourcesOfRoom(room.name);
             for (let key in mysources) {
                 let source = mysources[key];
@@ -475,11 +475,11 @@ var jobFinder = {
     
     fillJobQueueTransferMineral: function(room) {
         if (room.controller && room.controller.my) {
-            if(room.terminal && _.sum(room.terminal.store) < 200000 && room.terminal.my) {
+            if(typeof room.terminal != "undefined" && _.sum(room.terminal.store) < 200000 && room.terminal.my) {
                 this.addJobIfNotExists(TRANSFER_MINERAL,room.name,room.terminal.pos.x,room.terminal.pos.y,room.terminal.id,0);
             }
-            if(room.storage && _.sum( room.storage.store) < 500000 && room.storage.my) {
-                if (!room.terminal || _.sum(room.terminal.store) >= 200000) {
+            if(typeof room.storage != "undefined" && _.sum( room.storage.store) < 500000 && room.storage.my) {
+                if (typeof room.terminal == "undefined" || _.sum(room.terminal.store) >= 200000) {
                     // either there is no Terminal
                     this.addJobIfNotExists(TRANSFER_MINERAL,room.name,room.storage.pos.x,room.storage.pos.y,room.storage.id,0);
                 }
@@ -521,10 +521,8 @@ var jobFinder = {
             let right   = Game.flags['forcedismantle'].pos.x+range;
             let structs = Game.flags['forcedismantle'].room.lookForAtArea(LOOK_STRUCTURES,top,left,bottom,right,true);
             for (let key in structs) {
-                if ([STRUCTURE_ROAD,STRUCTURE_WALL,STRUCTURE_RAMPART].indexOf(structs[key].structure.structureType) !== -1) {
-                    this.addJobIfNotExists(DISMANTLE,room.name,structs[key].structure.pos.x,structs[key].structure.pos.y,structs[key].structure.id);
-                    structs[key].structure.notifyWhenAttacked(false);
-                }
+                this.addJobIfNotExists(DISMANTLE,room.name,structs[key].structure.pos.x,structs[key].structure.pos.y,structs[key].structure.id);
+                structs[key].structure.notifyWhenAttacked(false);
             }
         }
         if (Game.flags['donotrepairroads'] && Game.flags['donotrepairroads'].pos.roomName == room.name) {
@@ -533,20 +531,14 @@ var jobFinder = {
                 this.addJobIfNotExists(DISMANTLE,room.name,target[key].pos.x,target[key].pos.y,target[key].id);
             }
         }
-        // in RCL 1 / 2 remove walls / ramparts / Roads, because they are left overs of our enemies.
-        if (room.isMineClaimed() && room.controller.level < 3) {
-            var target = room.find(FIND_STRUCTURES, {filter: s => [STRUCTURE_WALL,STRUCTURE_RAMPART,STRUCTURE_ROAD].indexOf(s.structureType) !== -1});
-            for (let key in target) {
-                this.addJobIfNotExists(DISMANTLE,room.name,target[key].pos.x,target[key].pos.y,target[key].id);
-            }
-        }
+
     },
     
     fillJobQueueRepairStructure: function(room) {
 //        if (cachedSearch.towersOfRoom(room.name).length == 0 && !room.areThereEnemies()) {
             for (let key in room.memory.toBeRepaired) {
                 let structure = Game.getObjectById(room.memory.toBeRepaired[key].id);
-                if(structure && structure.hits < (room.memory.toBeRepaired[key].targethealth * 0.9)) {
+                if(structure && structure.hits < room.memory.toBeRepaired[key].targethealth) {
                     let doit = true;
                     if (Game.flags['forcedismantle'] && Game.flags['forcedismantle'].pos.roomName == structure.pos.roomName) {
                         let range = Game.flags['forcedismantle'].memory.range || 0;
@@ -555,7 +547,7 @@ var jobFinder = {
                         }
                     }
                     if (doit) {
-                        this.addJobIfNotExists(REPAIR_STRUCTURE,room.name,structure.pos.x,structure.pos.y,structure.id,structure.hits);
+                        this.addJobIfNotExists(REPAIR_STRUCTURE,room.name,structure.pos.x,structure.pos.y,structure.id);
                     }
                         
                 }
@@ -607,9 +599,6 @@ var jobFinder = {
         for(var key in rooms) {
             var room = Game.rooms[rooms[key]];
             if(room) {
-                if (Game.flags['ignoreJobs'] && Game.flags['ignoreJobs'].pos.roomName == room.name) {
-                    continue;
-                }
                 if (room.controller && room.controller.owner && !room.controller.my) {
                     // enemy rooms should only get dismantled :D
                     this.fillJobQueueDismantle(room);
@@ -861,7 +850,11 @@ var jobFinder = {
 	},
 	
 	assignUpgradeController: function(debug, slave) {
-		var potentialJobs = _.filter(Memory.jobs.UPGRADE_CONTROLLER, (job) =>  this.GeneralValidateJob(job,slave));
+	    var roomslave = slave.memory.roomslave;
+	    if (!roomslave) {
+	        roomslave = slave.room.name;
+	    }
+		var potentialJobs = _.filter(Memory.jobs.UPGRADE_CONTROLLER, (job) =>  this.GeneralValidateJob(job,slave) && job.roomName == roomslave);
         if (debug) console.log(slave.name+" assignUpgradeController found: "+potentialJobs.length);
 		if (potentialJobs.length > 0) {
 			let potentialJob = this.findNearest(slave.pos,potentialJobs);
@@ -873,34 +866,12 @@ var jobFinder = {
 		return false;
 	},
 	
-	assignRepairStructure: function(debug, slave, level = 2) {
+	assignRepairOrBuildStructure: function(debug, slave, level = 2) {
 		if (slave.memory.roomslave)
-			var potentialJobs = _.filter(Memory.jobs.REPAIR_STRUCTURE_BUILD_STRUCTURE, (job) =>  this.RoomSlaveValidateJob(job,slave) && job.jobtype == REPAIR_STRUCTURE && job.assigned.length < level);
+			var potentialJobs = _.filter(Memory.jobs.REPAIR_STRUCTURE_BUILD_STRUCTURE, (job) =>  this.RoomSlaveValidateJob(job,slave) && job.assigned.length < level);
 		else
-			var potentialJobs = _.filter(Memory.jobs.REPAIR_STRUCTURE_BUILD_STRUCTURE, (job) =>  this.GeneralValidateJob(job,slave) && job.jobtype == REPAIR_STRUCTURE && job.assigned.length < level);
-        if (debug) console.log(slave.name+" assignRepairStructure found (roomslave: "+slave.memory.roomslave+"): "+potentialJobs.length);
-		if (potentialJobs.length > 0) {
-//			let potentialJob = this.findNearest(slave.pos,potentialJobs);
-//			let potentialJob = this.findNearest(slave.pos,potentialJobs,false,true);
-			let potentialJob = _.sortBy(potentialJobs,j => j.meta2)[0];
-			slave.memory.job = potentialJob.jobkey;
-			Memory.jobs[this.getQueueForJobtype(potentialJob.jobtype)][potentialJob.jobkey].assigned.push(slave.name);
-            console.log(slave.name+" new job "+slave.memory.job+" ("+this.jobtypeToText(this.getJobtypeFromID(slave.memory.job))+")");
-			return true;
-		}
-		return false;
-	},
-	
-	
-	assignBuildStructure: function(debug, slave, level = 2, maxRoomDistance = false) {
-		if (slave.memory.roomslave)
-			var potentialJobs = _.filter(Memory.jobs.REPAIR_STRUCTURE_BUILD_STRUCTURE, (job) =>  this.RoomSlaveValidateJob(job,slave) && job.jobtype == BUILD_STRUCTURE && job.assigned.length < level);
-		else
-			var potentialJobs = _.filter(Memory.jobs.REPAIR_STRUCTURE_BUILD_STRUCTURE, (job) =>  this.GeneralValidateJob(job,slave) && job.jobtype == BUILD_STRUCTURE && job.assigned.length < level);
-		if (maxRoomDistance !== false) {
-		    potentialJobs = _.filter(potentialJobs, (job) => Game.my.managers.infrastructure.getRoomPathsLengthSimple(slave.room.name,job.roomName) <= maxRoomDistance)
-		}
-        if (debug) console.log(slave.name+" assignBuildStructure found (roomslave: "+slave.memory.roomslave+"): "+potentialJobs.length+" special maxRoomDistance: "+maxRoomDistance);
+			var potentialJobs = _.filter(Memory.jobs.REPAIR_STRUCTURE_BUILD_STRUCTURE, (job) =>  this.GeneralValidateJob(job,slave) && job.assigned.length < level);
+        if (debug) console.log(slave.name+" assignRepairOrBuildStructure found (roomslave: "+slave.memory.roomslave+"): "+potentialJobs.length);
 		if (potentialJobs.length > 0) {
 //			let potentialJob = this.findNearest(slave.pos,potentialJobs);
 			let potentialJob = this.findNearest(slave.pos,potentialJobs,false,true);
@@ -912,19 +883,15 @@ var jobFinder = {
 		return false;
 	},
 
-	assignRepairStructure: function(debug, slave, level = 2, maxRoomDistance = false) {
+	assignRepairStructure: function(debug, slave, level = 2) {
 		if (slave.memory.roomslave)
 			var potentialJobs = _.filter(Memory.jobs.REPAIR_STRUCTURE_BUILD_STRUCTURE, (job) =>  this.RoomSlaveValidateJob(job,slave) && job.assigned.length < level && job.jobtype == REPAIR_STRUCTURE);
 		else
 			var potentialJobs = _.filter(Memory.jobs.REPAIR_STRUCTURE_BUILD_STRUCTURE, (job) =>  this.GeneralValidateJob(job,slave) && job.assigned.length < level && job.jobtype == REPAIR_STRUCTURE);
-		if (maxRoomDistance !== false) {
-		    potentialJobs = _.filter(potentialJobs, (job) => Game.my.managers.infrastructure.getRoomPathsLengthSimple(slave.room.name,job.roomName) <= maxRoomDistance)
-		}
-        if (debug) console.log(slave.name+" assignRepairStructure found (roomslave: "+slave.memory.roomslave+"): "+potentialJobs.length+" special maxRoomDistance: "+maxRoomDistance);
+        if (debug) console.log(slave.name+" assignRepairStructure found (roomslave: "+slave.memory.roomslave+"): "+potentialJobs.length);
 		if (potentialJobs.length > 0) {
 //			let potentialJob = this.findNearest(slave.pos,potentialJobs);
-//			let potentialJob = this.findNearest(slave.pos,potentialJobs,false,true);
-			let potentialJob = _.sortBy(potentialJobs,j => j.meta2)[0];
+			let potentialJob = this.findNearest(slave.pos,potentialJobs,false,true);
 			slave.memory.job = potentialJob.jobkey;
 			Memory.jobs[this.getQueueForJobtype(potentialJob.jobtype)][potentialJob.jobkey].assigned.push(slave.name);
             console.log(slave.name+" new job "+slave.memory.job+" ("+this.jobtypeToText(this.getJobtypeFromID(slave.memory.job))+")");
@@ -934,14 +901,11 @@ var jobFinder = {
 	},
 
 	
-	assignTransferEnergy: function(debug, slave, untilStorageLevel = false) {
+	assignTransferEnergy: function(debug, slave) {
 		if (slave.memory.roomslave)
 			var potentialJobs = _.filter(Memory.jobs.TRANSFER_ENERGY, (job) =>  this.RoomSlaveValidateJob(job,slave));
 		else
 			var potentialJobs = _.filter(Memory.jobs.TRANSFER_ENERGY, (job) =>  this.GeneralValidateJob(job,slave));
-		if (untilStorageLevel != false) {
-		    potentialJobs = _.filter(potentialJobs, (job) => !Game.getObjectById(job.meta).store || Game.getObjectById(job.meta).store[RESOURCE_ENERGY] <= untilStorageLevel);
-		}
         if (debug) console.log(slave.name+" assignTransferEnergy found (roomslave: "+slave.memory.roomslave+"): "+potentialJobs.length);
 		if (potentialJobs.length > 0) {
 			let potentialJob = this.findNearest(slave.pos,potentialJobs);
@@ -965,26 +929,6 @@ var jobFinder = {
 		);
         if (debug) console.log(slave.name+" assignTransferEnergyToSpawnAndExtensions found (roomslave: "+slave.memory.roomslave+"): "+potentialJobs.length);
         if (debug) console.log(slave.name+" assignTransferEnergyToSpawnAndExtensions might have issues with storage in above mentioned room");
-		if (potentialJobs.length > 0 && (!Game.rooms[roomslave].storage || _.sum(Game.rooms[roomslave].storage.store) < 100000)) {
-			let potentialJob = this.findNearest(slave.pos,potentialJobs);
-			slave.memory.job = potentialJob.jobkey;
-			Memory.jobs[this.getQueueForJobtype(potentialJob.jobtype)][potentialJob.jobkey].assigned.push(slave.name);
-            console.log(slave.name+" new job "+slave.memory.job+" ("+this.jobtypeToText(this.getJobtypeFromID(slave.memory.job))+")");
-			return true;
-		}
-		return this.assignTransferEnergyToTowers(debug,slave);
-	},
-	
-	assignTransferEnergyToTowers: function(debug, slave) {
-	    var roomslave = slave.memory.roomslave;
-	    if (!roomslave) {
-	        roomslave = creep.room.name;
-	    }
-		var potentialJobs = _.filter(Memory.jobs.TRANSFER_ENERGY, (job) => this.RoomSlaveValidateJob(job,slave) 
-			&& (job.roomName == roomslave)
-			&& ([STRUCTURE_TOWER].indexOf(Game.getObjectById(job.meta).structureType)) !== -1                                
-		);
-        if (debug) console.log(slave.name+" assignTransferEnergyToTowers found (roomslave: "+slave.memory.roomslave+"): "+potentialJobs.length);
 		if (potentialJobs.length > 0 && (!Game.rooms[roomslave].storage || _.sum(Game.rooms[roomslave].storage.store) < 100000)) {
 			let potentialJob = this.findNearest(slave.pos,potentialJobs);
 			slave.memory.job = potentialJob.jobkey;
@@ -1045,11 +989,9 @@ var jobFinder = {
 				} else {
 					if (!slave.memory.roomslave) {
 					    if (debug) console.log(slave.name+" is not a roomslave!");
-						if (this.assignRepairStructure(debug, slave,5))				        return;
-						if (this.assignBuildStructure(debug, slave,5))			        	return;
-						if (this.assignTransferEnergy(debug, slave,100000))					return;
-						if (this.assignUpgradeController(debug, slave))					    return;
+						if (this.assignRepairOrBuildStructure(debug, slave,5))				return;
 						if (this.assignTransferEnergy(debug, slave))						return;
+						if (this.assignUpgradeController(debug, slave))					    return;
 					} else {
 					    if (debug) console.log(slave.name+" is a roomslave: "+slave.memory.roomslave);
 					    let room = Game.rooms[slave.memory.roomslave];
@@ -1062,17 +1004,12 @@ var jobFinder = {
                                 // only fill spawn and repair
                                 if (this.assignTransferEnergyToSpawnAndExtensions(debug, slave))				return;
                                 if (this.assignRepairStructure(debug, slave, 10))				                return;
-                                if (this.assignTransferEnergy(debug, slave))									return;
                             } else {
                                 if (debug) console.log(slave.name+" usual assignment");
                                 if (this.assignTransferEnergyToSpawnAndExtensions(debug, slave))				return;
-                                if (this.assignRepairStructure(debug, slave,10,0))							    return;
-                                if (this.assignBuildStructure(debug, slave,10,0))							        return;
-                                if (this.assignRepairStructure(debug, slave,10,5))							    return;
-                                if (this.assignBuildStructure(debug, slave,10,5))							        return;
-                                if (this.assignTransferEnergy(debug, slave,100000))								return;
+                                if (this.assignRepairOrBuildStructure(debug, slave,10))							return;
+                                if (this.assignTransferEnergy(debug, slave))									return;
                                 if (this.assignUpgradeController(debug, slave))								    return;
-						        if (this.assignTransferEnergy(debug, slave))						            return;
 						    }
 						}
 					}

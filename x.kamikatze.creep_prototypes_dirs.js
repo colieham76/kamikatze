@@ -74,8 +74,9 @@ Creep.prototype.dirIsSave = function(dir)  {
     }
     
 }
-RoomPosition.prototype.isMyRampart = function()  {
-    let stuff = this.lookFor(LOOK_STRUCTURES);
+// Game.creeps[].posIsMyRampart(new RoomPosition(4,31,'W85S71'));
+Creep.prototype.posIsMyRampart = function(pos)  {
+    let stuff = pos.lookFor(LOOK_STRUCTURES);
     if (_.filter(stuff, s => s.structureType == STRUCTURE_RAMPART && s.my == true).length > 0) {
         return true;
     } else {
@@ -84,7 +85,7 @@ RoomPosition.prototype.isMyRampart = function()  {
 }
 
 Creep.prototype.dirIsMyRampart = function(dir)  {
-    return this.dirToPos(dir).isMyRampart();
+    return this.posIsMyRampart(this.dirToPos(dir))
 }
 
 

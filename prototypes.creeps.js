@@ -1,5 +1,4 @@
 "use strict";
-
 Creep.prototype.repairNearby = function(debug = false) {
     var memrepair = [];
     if  (this.carry[RESOURCE_ENERGY] > 0 && this.getActiveBodyparts(WORK) > 0) {

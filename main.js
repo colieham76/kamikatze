@@ -5,7 +5,6 @@ require('prototypes.creeps.military');
 require('prototypes.creeps.move');
 require('x.kamikatze.creep_prototypes_flee');
 require('x.kamikatze.creep_prototypes_dirs');
-require('x.proximo.creepidle');
 require('prototypes.structures');
 require('prototypes.structures.observer');
 require('prototypes.structures.terminal');
@@ -54,8 +53,8 @@ module.exports.loop = function() {
     Game.my.managers.memory = memoryManager;
     Game.my.managers.creepManager = creepManager;
     Game.my.managers.lib_segments = lib_segments;
-    //Game.my.managers.sources.recalcMyPath(Game.creeps['harvesterHauler-358'].memory.source);
-    //Game.my.managers.sources.recalcMyPath('593583f49047e7000a981921');
+//        Game.my.managers.sources.recalcMyPath(Game.creeps['harvesterHauler-261'].memory.source);
+
     Game.bucketManager = bucketManager;
     cachedSearch.cleanUpCache();
     let name;
@@ -98,6 +97,7 @@ module.exports.loop = function() {
     if (Game.rooms["sim"]) {
         infrastructure.drawExtensions(Game.rooms["sim"]);
     } else {
+        infrastructure.planWalls(Game.rooms['W85S71']);
         let corerooms = Game.my.managers.strategy.getCoreRooms();
         for (let key in corerooms) {
             infrastructure.drawExtensions(Game.rooms[corerooms[key]]);
@@ -278,7 +278,7 @@ module.exports.loop = function() {
     for (let key in _.keys(Memory.squads)) {
         console.log('squad key '+_.keys(Memory.squads)[key]+' is in use');
     }
-    */  
+    */
 
 //    console.log(_.keys(Game.varMemory.pathCostsCache).length+" / "+_.keys(Memory.pathCostsCache).length);
     marketManager.status();

@@ -64,13 +64,7 @@ var memoryManager = {
             RawMemory.segments['0'] = JSON.stringify(output)
         }
 
-        if (!Memory.squads) {
-            Memory.squads = {};
-            Game.my.managers.strategy.addMainDefenseSquad();
-            Game.my.managers.strategy.addDefenseSquad();
-        }
-        Memory.friendly = Memory.friendly || [];
-        Memory.allied = Memory.allied || [];
+        
         if (!Memory.jobs)           Memory.jobs = {};
         if (!Memory.jobs.PICKUP_POWER)           Memory.jobs.PICKUP_POWER = {};
         if (!Memory.jobs.PICKUP_ENERGY_PICKUP_MINERAL)           Memory.jobs.PICKUP_ENERGY_PICKUP_MINERAL = {};

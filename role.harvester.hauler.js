@@ -116,12 +116,6 @@ var roleHarvesterHauler = {
                             console.log(creep.name+' at '+creep.pos+' needs a new path?');
                             Game.my.managers.sources.recalcMyPath(creep.memory.source);
                         }
-                    } else {
-                        let giveaway = creep.pos.findInRange(FIND_MY_CREEPS,1,{filter: c => ['transporter','upgrader'].indexOf(c.memory.role) !== -1});
-                        if (debug) console.log(creep.name+' > '+giveaway.length);
-                        if (giveaway.length > 0) {
-                            creep.transfer(giveaway[0],RESOURCE_ENERGY);
-                        }
                     }
                     this.moveByPath(creep,path,true,debug);
                 }
@@ -175,8 +169,6 @@ var roleHarvesterHauler = {
                             if (reset) {
                                 creep.memory.laststep = -1;
                                 this.moveByPath(creep,path,true,debug);
-                            } else {
-                                creep.idleFor(10);
                             }
                         }
                     } else {

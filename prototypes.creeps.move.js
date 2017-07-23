@@ -1,7 +1,5 @@
 "use strict";
 Creep.prototype.roomroute = function(from,to,debug = false, avoid = true) {
-    let targetPos = to;
-    to = targetPos.roomName;
     if (typeof to == "undefined") return false;
     if (this.name ==  'harvesterHauler-467') {
         debug = true;
@@ -43,31 +41,8 @@ Creep.prototype.roomroute = function(from,to,debug = false, avoid = true) {
             }
         }
         if (!result) {
-            if (debug) console.log(this.name+" findClosestByPath from "+origFrom+" to "+to+" > "+Game.my.managers.memory.roomroute[origFrom][to]);
-            
-            // wenn der result exit mich in den ziel raum bringt, macht den reverse check um den richtigen Exit zu nehmen
-            if (Game.rooms[to] && Game.map.describeExits(origFrom)[Game.my.managers.memory.roomroute[origFrom][to]] == to) {
-                console.log("roomroute > "+this.name+": I am in "+from);
-                console.log("roomroute > "+this.name+": I want to go to "+targetPos);
-                console.log("roomroute > "+this.name+": doing reverse check");
-                let reverse = false;
-                if (Game.my.managers.memory.roomroute[origFrom][to] == TOP) reverse = BOTTOM;
-                else if (Game.my.managers.memory.roomroute[origFrom][to] == LEFT) reverse = RIGHT;
-                else if (Game.my.managers.memory.roomroute[origFrom][to] == RIGHT) reverse = LEFT;
-                else if (Game.my.managers.memory.roomroute[origFrom][to] == BOTTOM) reverse = TOP;
-
-                result = new RoomPosition(targetPos.x,targetPos.y,targetPos.roomName).findClosestByPath(reverse);
-                if (result) {
-                    result.roomName = origFrom;
-                    if (result.y == 0) result.y = 49;
-                    else if (result.y == 49) result.y = 0;
-                    if (result.x == 0) result.x = 49;
-                    else if (result.x == 49) result.x = 0;
-                }
-            } 
-            if (!result) {
-                result = this.pos.findClosestByPath(Game.my.managers.memory.roomroute[origFrom][to]);
-            }
+            if (debug) console.log(this.name+" findClosestByRange from "+origFrom+" to "+to+" > "+Game.my.managers.memory.roomroute[origFrom][to]);
+            result = this.pos.findClosestByPath(Game.my.managers.memory.roomroute[origFrom][to]);
             if (debug) console.log(this.name+" result "+JSON.stringify(result));
             if (!result) {
                 delete this.memory._roomroute;
@@ -313,7 +288,7 @@ Creep.prototype.movePredefined = function(targetPos, opts = {}, debug = false) {
         opts.onlyMoveOnCompletePath = false;
     }
     if (this.pos.roomName != targetPos.roomName && !opts.noShortCuts) {
-        let tmp = this.roomroute(this.pos.roomName,targetPos,this.name == debug,opts.avoid)
+        let tmp = this.roomroute(this.pos.roomName,targetPos.roomName,this.name == debug,opts.avoid)
         if (debug) console.log("roomroute result: "+JSON.stringify(tmp));
         if (tmp) {
             if (this.name == debug) console.log("using shortcut");

@@ -2,10 +2,9 @@ Creep.prototype.fleeYouFools = function(debug = false, allowRoomLeave = false) {
     if (!this.pos || this.fatigue > 0 || this.getActiveBodyparts(MOVE) == 0) {
         return false;
     }
-    if (this.pos.isMyRampart()) {
+    if (this.posIsMyRampart(this.pos)) {
         return false;
     }
-//    if (this.isOnExit()) return false;
     var top = Math.max(this.pos.y-2,0);
     var left = Math.max(this.pos.x-2,0);
     var bottom = Math.min(this.pos.y+2,49);
