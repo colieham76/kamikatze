@@ -6,7 +6,7 @@ var roleSquadUlti = {
         //console.log(creep.name+" is a defender and is in "+creep.room.name);
         creep.notifyWhenAttacked(false);
         var debug = false;
-        if (creep.memory.squad == 39) {
+        if (creep.memory.squad == 12) {
 //            debug = true;
         }
 //        if (creep.name == "squadsk-273") debug = true;
@@ -33,7 +33,14 @@ var roleSquadUlti = {
             // returns true, if we need to abort calculation for this troop.
             return;
         }
-        if ((creep.getActiveBodyparts(RANGED_ATTACK) <= 0 && _.filter(creep.body, (b) => b.type == RANGED_ATTACK).length > 0) || creep.memory.retreat) {
+        if (
+            // Och habe das retreat flag
+            creep.memory.retreat
+            // Oder ich habe keine aktiven RangedAttack, aber ich habe überhaupt RangeAttack
+            || (creep.getActiveBodyparts(RANGED_ATTACK) <= 0 && _.filter(creep.body, (b) => b.type == RANGED_ATTACK).length > 0)
+            // Oder ich habe einen Safemode Targetroom
+            || (Game.rooms[mysquad.targetRoom] && Game.rooms[mysquad.targetRoom].controller && Game.rooms[mysquad.targetRoom].controller.safeMode)
+        ) {
             creep.memory.retreat = true;
             let flag = creep.fleeYouFools(debug,true);
             creep.heal(creep);
@@ -86,7 +93,7 @@ var roleSquadUlti = {
                     if(target instanceof Structure && target.structureType != STRUCTURE_TOWER) {
                         range = 1;
                     }
-                    if(!flag && target instanceof StructureKeeperLair) {
+                    if(!flag && (!target || target instanceof StructureKeeperLair)) {
                         flag = creep.Medic();;
                         
                     }
@@ -96,37 +103,61 @@ var roleSquadUlti = {
                         !flag 
                         // Target is not on room change
                         && !target.pos.isExit() 
-                        // Target is not yet in Range
-                        && target.pos.getRangeTo(creep) > range
                     ) {
-                        if (debug) console.log('Master, I approach!');
-                        if (creep.isOnExit() && (creep.room.find(FIND_STRUCTURES,{filter: (s) => s.structureType == STRUCTURE_TOWER && !s.my}).length == 0 || _.filter(fireMG,t=>(!t.structureType || t.structureType != STRUCTURE_WALL)).length == 0)) {
-                            if (debug) console.log(creep.name+" fires MG: "+fireMG);
-                            creep.moveTo(creep.room.getPositionAt(25,25));
-                        } else {
-                            if (
-                                // true means i have to wait for my buddy
-                                mysquad.isSK == false // SKs don't wait for their buddies
-                                && creep.memory.buddy // I have a buddy i can wait for
-                                && Game.creeps[creep.memory.buddy] // my buddy is alive
-                                && (
-                                    Game.creeps[creep.memory.buddy].room.name != creep.room.name // and my buddy is not in the same room
-                                    || Game.creeps[creep.memory.buddy].pos.getRangeTo(creep) >= 3
-                                )
-                            ) {
-                                if (Game.creeps[creep.memory.buddy].room.name == creep.room.name) {
-                                    creep.say(Game.creeps[creep.memory.buddy].pos.getRangeTo(creep))
+                        if (
+                            // Target is not yet in Range
+                            target.pos.getRangeTo(creep) > range
+                        ) {
+                            if (debug) console.log('Master, Target is not yet in Range: I approach!');
+                            if (creep.isOnExit()) {
+    //                            if (creep.room.find(FIND_STRUCTURES,{filter: (s) => s.structureType == STRUCTURE_TOWER && !s.my}).length == 0 || _.filter(fireMG,t=>(!t.structureType || t.structureType != STRUCTURE_WALL)).length == 0) {
+                                if (
+                                    /* ########################
+                                    ###########################
+                                    ######### LONGBOW #########
+                                    ###########################
+                                    ######################## */
+                                    // If this is true, i do not enter the room because of longbow tactics.
+                                    // If there is no enemy tower, i do not need longbow
+                                    creep.room.find(FIND_STRUCTURES,{filter: (s) => s.structureType == STRUCTURE_TOWER && !s.my && s.energy > 9}).length == 0
+                                    // If there is a path to the enemy tower, i do not need longbow
+                                    || creep.pos.findClosestByPath(FIND_STRUCTURES,{filter: (s) => s.structureType == STRUCTURE_TOWER && !s.my})
+                                    // if there is nothing in range for my MG, longbow does not work...
+                                    || fireMG.length == 0
+                                ) {
+                                    if (debug) console.log(creep.name+" fires MG: "+fireMG);
+                                    creep.say('clear');
+                                    creep.moveTo(creep.room.getPositionAt(25,25));
                                 }
                             } else {
-                                let onlyMoveOnCompletePath = true;
-                                if (target instanceof ConstructionSite) {
-                                    onlyMoveOnCompletePath = false;
+                                if (
+                                    // true means i have to wait for my buddy
+                                    mysquad.isSK == false // SKs don't wait for their buddies
+                                    && creep.memory.buddy // I have a buddy i can wait for
+                                    && Game.creeps[creep.memory.buddy] // my buddy is alive
+                                    && (
+                                        Game.creeps[creep.memory.buddy].room.name != creep.room.name // and my buddy is not in the same room
+                                        || Game.creeps[creep.memory.buddy].pos.getRangeTo(creep) >= 3
+                                    )
+                                ) {
+                                    if (Game.creeps[creep.memory.buddy].room.name == creep.room.name) {
+                                        creep.say(Game.creeps[creep.memory.buddy].pos.getRangeTo(creep))
+                                    }
+                                } else {
+                                    creep.movePredefined(target,{range:range, checkIfSave:true, avoid: false, onlyMoveOnCompletePath: false});
                                 }
-                                creep.movePredefined(target,{range:range, checkIfSave:true, avoid: false, onlyMoveOnCompletePath: onlyMoveOnCompletePath});
                             }
+                        } else if (
+                            // Target is inner Range
+                            target.pos.getRangeTo(creep) < 3
+                            // and we are close to exit
+                            && creep.pos.findInRange(FIND_EXIT,2).length > 0
+                        ) {
+                            console.log('result: '+creep.movePredefined(creep.room.getPositionAt(25,25),{checkIfSave:true, avoid: false, onlyMoveOnCompletePath: false}));
                         }
+                        // creep.say('R: '+target.pos.getRangeTo(creep)+'/'+range+' E: '+creep.pos.findInRange(FIND_EXIT,3).length)
                     } else if (creep.isOnExit() && creep.room.find(FIND_STRUCTURES,{filter: (s) => s.structureType == STRUCTURE_TOWER && !s.my}).length == 0) {
-                        creep.move(creep.pos.getDirectionTo(25,25));
+                        creep.movePredefined(creep.room.getPositionAt(25,25));
                     }
                 } else {
                     if (debug) console.log('Master, '+creep.name+' is a melee one.');

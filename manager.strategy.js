@@ -35,6 +35,14 @@ var strategyManager = {
             'squadsiegereserver'
             ];
     },
+    // Game.my.managers.strategy.isFriendly('NixNutz');
+    isFriendly: function(name) {
+        return (!(Memory.friendly.indexOf(name) == -1 && Memory.allied.indexOf(name) == -1));
+    },
+    // Game.my.managers.strategy.isAllied('NixNutz');
+    isAllied: function(name) {
+        return (Memory.allied.indexOf(name) !== -1);
+    },
 // Game.my.managers.strategy.getCoreRooms();
     getCoreRooms: function() {
         if (!Memory.getCoreRooms) {
@@ -51,11 +59,16 @@ var strategyManager = {
         }
         return Memory.getCoreRooms;
     },
+    // Game.my.managers.strategy.getHighestSpawnLevel();
     getHighestSpawnLevel: function() {
         return this.getHighestSpawn().room.controller.level;
     },
     getHighestSpawn: function() {
-        this.highestSpawn = this.highestSpawn || _.max(_.filter(Game.spawns,s => _.size(_.filter(Game.constructionSites,c=>[STRUCTURE_EXTENSION, STRUCTURE_SPAWN].indexOf(c.structureType) !== -1 && c.room.name == s.room.name)) == 0),s => s.room.controller.level);
+        let filter = _.filter(Game.spawns,s => _.size(_.filter(Game.constructionSites,c=>[STRUCTURE_EXTENSION, STRUCTURE_SPAWN].indexOf(c.structureType) !== -1 && c.room.name == s.room.name)) == 0);
+        if (filter.length == 0) {
+            filter = Game.spawns;
+        }
+        this.highestSpawn = this.highestSpawn || _.max(filter,s => s.room.controller.level);
         return this.highestSpawn;
     },
     getHighestSpawnRoom: function() {
@@ -135,6 +148,7 @@ var strategyManager = {
         delete Memory.whitelistrooms;
         return true;
     },
+    // Game.my.managers.strategy.removeRealWhitelistRoom("E3S9");
     removeRealWhitelistRoom: function(roomName) {
         if (Memory.realwhitelistrooms.indexOf(roomName) === -1) {
             return "removeRealWhitelistRoom > "+roomName+" already not on list";
@@ -493,6 +507,23 @@ var strategyManager = {
         }
         this.addSquad(args);
     },
+    // Game.my.managers.strategy.addMainDefenseSquad();
+    addMainDefenseSquad: function() {
+        let args = {
+            fallbackRoom: this.getHighestSpawnRoom().name,
+            targetRoom: this.getHighestSpawnRoom().name,
+            stagingRoom: this.getHighestSpawnRoom().name,
+            configsquadsize: {
+                'squadsk': 2,
+                'squadbuddy': 2
+            },
+            boost: true,
+            isDefender: false,
+            revive: false,
+            reviveIfOtherSquadIsLow: false
+        }
+        this.addSquad(args);
+    },
     // Game.my.managers.strategy.addSKSquads('W86S64');
     addSKSquads: function(roomName) {
         Memory.squadid = Memory.squadid || 0;
@@ -548,11 +579,12 @@ var strategyManager = {
             boost: false,
             isDefender: false,
             isSK: false,
-            revive: false
+            revive: true
         }
         this.addSquad(args,dryrun);
     },
-    addDrainSquads: function(drainRoom,healRoom) {
+    // Game.my.managers.strategy.addDrainSquads('E5S8','E4S8',true);
+    addDrainSquads: function(drainRoom,healRoom,dryrun=false) {
         let args = {
             fallbackRoom: healRoom,
             targetRoom: drainRoom,
@@ -566,7 +598,7 @@ var strategyManager = {
             revive: false,
             reviveIfOtherSquadIsLow: Number(Memory.squadid) + 1
         }
-        this.addSquad(args);
+        this.addSquad(args,dryrun);
         args = {
             fallbackRoom: healRoom,
             targetRoom: drainRoom,
@@ -580,7 +612,7 @@ var strategyManager = {
             revive: false,
             reviveIfOtherSquadIsLow: Number(Memory.squadid) - 1
         }
-        this.addSquad(args);
+        this.addSquad(args,dryrun);
         args = {
             fallbackRoom: healRoom,
             targetRoom: healRoom,
@@ -594,7 +626,7 @@ var strategyManager = {
             revive: false,
             reviveIfOtherSquadIsLow: Number(Memory.squadid) + 1
         }
-        this.addSquad(args);
+        this.addSquad(args,dryrun);
         args = {
             fallbackRoom: healRoom,
             targetRoom: healRoom,
@@ -608,7 +640,7 @@ var strategyManager = {
             revive: false,
             reviveIfOtherSquadIsLow: Number(Memory.squadid) - 1
         }
-        this.addSquad(args);
+        this.addSquad(args,dryrun);
     },
     // Game.my.managers.strategy.addBoostedAttackSquads("W85S71","W85S70");
     addBoostedAttackSquads: function(attackRoom,stagingRoom,dryrun=false) {

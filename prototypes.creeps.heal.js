@@ -40,7 +40,7 @@ Creep.prototype.Medic = function(debug = false) {
     }
     var targets = this.pos.findInRange(FIND_CREEPS, 1, {filter: (f) => 
         f.hits / f.hitsMax < 1 
-        && (f.my || f.owner && (Memory.friendly.indexOf(f.owner.username) !== -1 || Memory.allied.indexOf(f.owner.username) !== -1))
+        && (f.my || f.owner && Game.my.managers.strategy.isFriendly(f.owner.username))
         && _.filter(f.body, b => healbodyparts.indexOf(b.type) !== -1).length > 0
     });
     for(let key in targets) {
@@ -56,7 +56,7 @@ Creep.prototype.Medic = function(debug = false) {
     if (!toHealCreep) {
         var targets = this.pos.findInRange(FIND_CREEPS, 3, {filter: (f) => 
             f.hits / f.hitsMax < 1 
-            && (f.my || f.owner && (Memory.friendly.indexOf(f.owner.username) !== -1 || Memory.allied.indexOf(f.owner.username) !== -1))
+            && (f.my || f.owner && Game.my.managers.strategy.isFriendly(f.owner.username))
             && _.filter(f.body, b => healbodyparts.indexOf(b.type) !== -1).length > 0
         });
         for(let key in targets) {
@@ -74,7 +74,7 @@ Creep.prototype.Medic = function(debug = false) {
     if (!toHealCreep) {
         var all = this.room.find(FIND_CREEPS, {filter: (f) => 
             f.hits / f.hitsMax < 1 
-            && (f.my || f.owner && (Memory.friendly.indexOf(f.owner.username) !== -1 || Memory.allied.indexOf(f.owner.username) !== -1))
+            && (f.my || f.owner && Game.my.managers.strategy.isFriendly(f.owner.username))
             && _.filter(f.body, b => healbodyparts.indexOf(b.type) !== -1).length > 0
         });
         // first heal healers, then heal fighters, then heal anybody
@@ -131,7 +131,7 @@ Creep.prototype.HealMeOrClose = function() {
     } else {
         var targets = this.pos.findInRange(FIND_CREEPS, 1, {
             filter: (c) => 
-             (c.hits < c.hitsMax) && (c.my || c.owner && (Memory.friendly.indexOf(c.owner.username) !== -1 || Memory.allied.indexOf(c.owner.username) !== -1))
+             (c.hits < c.hitsMax) && (c.my || c.owner && Game.my.managers.strategy.isFriendly(c.owner.username))
          });
         if (targets.length > 0) {
             return this.heal(targets[0]);

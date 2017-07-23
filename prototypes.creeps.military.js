@@ -1,4 +1,13 @@
 "use strict";
+Creep.prototype.isProtectedByRampart = function()  {
+    let stuff = this.pos.lookFor(LOOK_STRUCTURES);
+    if (_.filter(stuff, s => s.structureType == STRUCTURE_RAMPART).length > 0) {
+        return true;
+    } else {
+        return false;
+    }
+}
+
 Creep.prototype.attackNearby = function(debug = false) {
     if (this.getActiveBodyparts(ATTACK) > 0) { 
         let target = this.findTargetLogic(debug,1);
@@ -39,7 +48,7 @@ Creep.prototype.fireMG = function(debug = false) {
         }
         this.room.my = this.room.my || {};
         this.room.my.enemies = this.room.my.enemies || this.room.find(FIND_HOSTILE_CREEPS);
-        let enemies = _.filter(this.room.my.enemies, c => this.pos.getRangeTo(c) <= range && (!c.owner || (Memory.friendly.indexOf(c.owner.username) == -1 && Memory.allied.indexOf(c.owner.username) == -1)));
+        let enemies = _.filter(this.room.my.enemies, c => this.pos.getRangeTo(c) <= range && (!c.owner || !Game.my.managers.strategy.isFriendly(c.owner.username)) && !c.isProtectedByRampart());
         if (target.length == 0) {
     //        let enemies = this.pos.findInRange(FIND_HOSTILE_CREEPS,range,{filter: (c) => !c.owner || (Memory.friendly.indexOf(c.owner.username) == -1 && Memory.allied.indexOf(c.owner.username) == -1)});
     
@@ -70,7 +79,7 @@ Creep.prototype.fireMG = function(debug = false) {
                 // I don't want this room, so destroy Terminal / Storage
                 spare = [STRUCTURE_STORAGE,STRUCTURE_TERMINAL]
             }
-            let structs = this.pos.findInRange(FIND_STRUCTURES, range, {filter: c => !c.owner || (Memory.friendly.indexOf(c.owner.username) == -1 && Memory.allied.indexOf(c.owner.username) == -1)});
+            let structs = this.pos.findInRange(FIND_STRUCTURES, range, {filter: c => !c.owner || !Game.my.managers.strategy.isFriendly(c.owner.username)});
             if (!this.room.isMine()) { 
                 target = _.filter(structs,s => s.structureType == STRUCTURE_TOWER);
                 if (target.length == 0) {
@@ -78,7 +87,11 @@ Creep.prototype.fireMG = function(debug = false) {
                     
                 }
                 if (target.length == 0) {
-                    target = _.filter(structs,s => s.hits && ([STRUCTURE_ROAD,STRUCTURE_WALL,STRUCTURE_CONTAINER,STRUCTURE_RAMPART].indexOf(s.structureType) !== -1));
+                    let targetStructureTypes = [STRUCTURE_ROAD,STRUCTURE_WALL,STRUCTURE_CONTAINER,STRUCTURE_RAMPART];
+                    if (Memory.realwhitelistrooms.indexOf(this.room.name) !== -1) {
+                        targetStructureTypes = [STRUCTURE_WALL,STRUCTURE_RAMPART];
+                    }
+                    target = _.filter(structs,s => s.hits && (targetStructureTypes.indexOf(s.structureType) !== -1));
                 }
             }
             if (target.length == 0 && !this.room.isMineClaimed()) {
@@ -106,7 +119,7 @@ Creep.prototype.fireMG = function(debug = false) {
             }
         }
         if (massattack) {
-            let friendlies = _.filter(enemies, (c) => c.owner && (Memory.friendly.indexOf(c.owner.username) !== -1 || Memory.allied.indexOf(c.owner.username) !== -1));
+            let friendlies = _.filter(enemies, (c) => c.owner && Game.my.managers.strategy.isFriendly(c.owner.username));
             if (friendlies.length > 0) {
                 massattack = false;
             }
@@ -157,11 +170,13 @@ Creep.prototype.findTargetLogic= function(debug = false, maxrange = 60) {
     let enemies = _.filter(this.room.my.enemies, 
         (c => 
             // Kein Owner oder nicht freundlich oder nicht ally
-            (!c.owner || (Memory.friendly.indexOf(c.owner.username) == -1 && Memory.allied.indexOf(c.owner.username) == -1)) 
+            (!c.owner || !Game.my.managers.strategy.isFriendly(c.owner.username))
             // Und ist in Maxrange
             && this.pos.getRangeTo(c) <= maxrange 
             // Und im fall von ignoreborder, darf kein exit in range sein.
             && (!ignoreborder || c.pos.findInRange(FIND_EXIT,0).length == 0 || c.owner.name == "Invader")
+            // Und ist nicht unter einer Rampart
+            && !c.isProtectedByRampart()
         )
     );
     // this.room.find(FIND_HOSTILE_CREEPS,{filter: (c) => !c.owner || Memory.friendly.indexOf(c.owner.username) == -1});
@@ -220,7 +235,13 @@ Creep.prototype.findTargetLogic= function(debug = false, maxrange = 60) {
     if (debug) console.log('findTargetLogic > '+this.name+' target before checking for structs: '+target);
     if (!this.memory.__findTargetLogicSkipStructs || this.memory.__findTargetLogicSkipStructs != this.room.name) {
         if (!target || focusOnStructs || onlyKillTowers) {
-            let structs = this.room.find(FIND_STRUCTURES, {filter: (f) => f.my != true && f.hits && (!f.owner || (Memory.friendly.indexOf(f.owner.username) == -1 && Memory.allied.indexOf(f.owner.username) == -1)) && this.pos.getRangeTo(f) <= maxrange});
+            let structs = this.room.find(FIND_STRUCTURES, 
+                {filter: (f) => 
+                    f.my != true 
+                    && f.hits 
+                    && (!f.owner || !Game.my.managers.strategy.isFriendly(f.owner.username))
+                    && this.pos.getRangeTo(f) <= maxrange
+                });
             if (debug) console.log('findTargetLogic > '+this.name+' checks for buildings '+structs.length);
             if (structs.length > 0) {
                 let tower   = this.pos.findClosestByPath(_.filter(structs, f => f.structureType == STRUCTURE_TOWER), { maxRooms: 1, range: range });
@@ -264,8 +285,13 @@ Creep.prototype.findTargetLogic= function(debug = false, maxrange = 60) {
                             if (containers) target = containers;
                         }
                         if (!this.room.isMine() && !target) {
-                            let roads = this.pos.findClosestByPath(_.filter(structs, f => f.structureType == STRUCTURE_ROAD || f.structureType == STRUCTURE_RAMPART || f.structureType == STRUCTURE_WALL), { maxRooms: 1, range: range });
-                            if (roads) target = roads;
+                            if (this.room.isMineClaimed()) {
+                                let roads = this.pos.findClosestByPath(_.filter(structs, f => f.structureType == STRUCTURE_RAMPART || f.structureType == STRUCTURE_WALL), { maxRooms: 1, range: range });
+                                if (roads) target = roads;
+                            } else {
+                                let roads = this.pos.findClosestByPath(_.filter(structs, f => f.structureType == STRUCTURE_ROAD || f.structureType == STRUCTURE_RAMPART || f.structureType == STRUCTURE_WALL), { maxRooms: 1, range: range });
+                                if (roads) target = roads;
+                            }
                         }
                     }
                 }

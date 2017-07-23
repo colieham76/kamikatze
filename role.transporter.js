@@ -147,20 +147,16 @@ var roleTransporter = {
                     if (!target) {
 // everything is filled 
 //                        console.log("WTF fillup!"+creep.room.name);
-
-                        if (_.sum(creep.room.storage.store) < 910000) {
-                            if (creep.transfer(creep.room.storage,RESOURCE_ENERGY) == ERR_NOT_IN_RANGE) {
-                                creep.movePredefined(creep.room.storage,{range:1});
-                            }
-                        } else {
-                            if (creep.room.terminal) {
-                                if (creep.transfer(creep.room.terminal,RESOURCE_ENERGY) == ERR_NOT_IN_RANGE) {
-                                    creep.movePredefined(creep.room.terminal,{range:1});
-                                }
-                            }
+                        target = creep.room.storage;
+                        if (creep.room.terminal && _.sum(creep.room.storage.store) > 910000) {
+                            target = creep.room.terminal;
                         }
-                    // TODO wait for 5 ticks
-                        
+                        let result = creep.transfer(target,RESOURCE_ENERGY);
+                        if (result == ERR_NOT_IN_RANGE) {
+                            creep.movePredefined(target,{range:1});
+                        } else if (result == OK) {
+                            creep.idleFor(10);
+                        }
                     } else {
                         if (debug) console.log(creep.name + " has target: "+target.pos);
                         // if target, fillup target
@@ -201,12 +197,6 @@ var roleTransporter = {
             }
             if (!creep.memory.pickuptarget) {
                 let takeenergyfromstorage = true;
-                let takeaway = creep.pos.findInRange(FIND_MY_CREEPS,1,{filter: c => c.memory.role == 'harvesterHauler' && c.carry[RESOURCE_ENERGY] > 0});
-                if (debug) console.log(creep.name+' > '+takeaway.length);
-                if (takeaway.length > 0) {
-                    takeaway[0].transfer(creep,RESOURCE_ENERGY);
-                    takeenergyfromstorage = false;
-                }
                 if (takeenergyfromstorage && creep.room.memory.links.storagelink) {
                     let storagelink = Game.getObjectById(creep.room.memory.links.storagelink);
                     let controllerlink = Game.getObjectById(creep.room.memory.links.controllerlink);

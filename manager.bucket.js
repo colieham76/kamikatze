@@ -21,7 +21,7 @@ var bucketManager = {
         'terminals': 0.1,
         'findrepairs': 0.1,
         'jobFinder-fillJobQueue': 0.5,
-        'jobFinder-assignJobs': 3.0,
+        'jobFinder-assignJobs': 1.0,
         'creeps' : 40,
         'creeps-eco' : 50,
         'military' : 20,
@@ -34,7 +34,7 @@ var bucketManager = {
 //        'infrastructure': 2500,
         'findrepairs': 100,
         'spawns-queue': 10,
-        'jobFinder-assignJobs': 2,
+        'jobFinder-assignJobs': 10,
     },
     addtobucket: function() {
         if (Game.cpu.bucket > 600) {

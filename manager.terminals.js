@@ -218,12 +218,11 @@ var terminalManager = {
             let inactiveorders = _.filter(Game.market.orders, o => o.type == ORDER_SELL && !o.active && o.roomName == room);
             for(let key in inactiveorders) {
                 let order = inactiveorders[key];
-                
                 let sender = _.filter(Game.structures, (s) => s.structureType == STRUCTURE_TERMINAL && s.requestAvailableMineralAmount(order.resourceType) > 0);
                 console.log("terminal manager > "+terminal.pos.roomName+" > looking for "+order.resourceType+" in global terminals... found: "+sender.length);
                 for(let send of sender) {
                     console.log("terminal manager > "+terminal.pos.roomName+" > "+order.resourceType+" will be sent from "+send.room.name);
-                    if (send.send(order.resourceType,Math.max(3000,s.requestAvailableMineralAmount(order.resourceType)),terminal.pos.roomName) == OK) {
+                    if (send.send(order.resourceType,Math.min(3000,send.requestAvailableMineralAmount(order.resourceType)),terminal.pos.roomName) == OK) {
                         break;
                     }
                 }

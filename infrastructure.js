@@ -12,6 +12,7 @@ var infrastructure = {
             }
         }
     },
+    // Game.my.managers.infrastructure.planWalls(Game.rooms["E1S9"]);
     planWalls: function(room) {
         if (!room.memory.alreadyPlannedWalls) {
             let exits = room.find(FIND_EXIT);
@@ -28,7 +29,11 @@ var infrastructure = {
                     if (typeof _.find(walls, p => p.x == candidate.x && p.y == candidate.y)  == "undefined") {
                         if (exit.getRangeTo(candidate.x,candidate.y) == range) {
                             if (room.getPositionAt(candidate.x,candidate.y).findInRange(FIND_EXIT,range-1).length == 0) {
-                                walls.push({x: candidate.x,y: candidate.y});
+                                if (room.getPositionAt(candidate.x,candidate.y).findPathTo(exit).length <= 4) {
+                                    walls.push({x: candidate.x,y: candidate.y});
+                                } else {
+                                    console.log(room.getPositionAt(candidate.x,candidate.y).findPathTo(exit).length);
+                                }
                             }
                         }
                     }
@@ -36,7 +41,7 @@ var infrastructure = {
             }
     //        console.log('drawWalls > before: '+walls.length);
     //        walls = _.uniq(walls, p => p.x+"$"+p.y);
-    //        console.log('drawWalls > after: '+walls.length);
+            console.log('drawWalls > after: '+walls.length);
             let i = 0;
             for(let wall of walls) {
                 let color = '#FF0000';
@@ -108,7 +113,47 @@ var infrastructure = {
                 let extensions = this.placeExtensions(room);
                 room.memory.placeExtensionsControllerLevel = room.controller.level;
             }
+            if (room.memory.placeExtensionsControllerLevel >= 3) {
+                // Plan roads for first flower
+                this.placeExtensionsRoads(room,1);
+            }
+            if (room.memory.placeExtensionsControllerLevel >= 4) {
+                // Plan roads for second flower
+                this.placeExtensionsRoads(room,2);
+            }
+            if (room.memory.placeExtensionsControllerLevel >= 5) {
+                // Plan roads for third flower
+                this.placeExtensionsRoads(room,3);
+            }
+            if (room.memory.placeExtensionsControllerLevel >= 6) {
+                // Plan roads for third flower
+                this.placeExtensionsRoads(room,4);
+            }
+            if (room.memory.placeExtensionsControllerLevel >= 7) {
+                // Plan roads for third flower
+                this.placeExtensionsRoads(room,5);
+            }
+            if (room.memory.placeExtensionsControllerLevel >= 8) {
+                // Plan roads for third flower
+                this.placeExtensionsRoads(room,6);
+            }
         }
+    },
+    placeExtensionsRoads: function(room,flower) {
+        flower = (flower - 1) * 12;
+        let start = room.memory.plannedExtensions[flower];
+        this.planRoad(room.name,(start.x)-1,(start.y)  );
+        this.planRoad(room.name,(start.x)-1,(start.y)+1);
+        this.planRoad(room.name,(start.x)  ,(start.y)+2);
+        this.planRoad(room.name,(start.x)+1,(start.y)+3);
+        this.planRoad(room.name,(start.x)+2,(start.y)+3);
+        this.planRoad(room.name,(start.x)+3,(start.y)+2);
+        this.planRoad(room.name,(start.x)+4,(start.y)+1);
+        this.planRoad(room.name,(start.x)+4,(start.y)  );
+        this.planRoad(room.name,(start.x)+3,(start.y)-1);
+        this.planRoad(room.name,(start.x)+2,(start.y)-2);
+        this.planRoad(room.name,(start.x)+1,(start.y)-2);
+        this.planRoad(room.name,(start.x)  ,(start.y)-1);
     },
     placeExtensionsIgnoreArea: function(potential,centerx,centery,room = false) {
         for (let avoidx = -2; avoidx <= 3; avoidx++) {
@@ -283,6 +328,12 @@ var infrastructure = {
                     }
                 }
             }
+            // remove walls / ramparts / roads in RCL 1 / 2
+            if (repair[key].room.isMineClaimed() && repair[key].room.controller.level < 3) {
+                if ([STRUCTURE_WALL,STRUCTURE_RAMPART,STRUCTURE_ROAD].indexOf(repair[key].structureType) !== -1) {
+                    splice = true;
+                }
+            }
             // remove buildings which actually are not mine
             if (typeof repair[key].my !== "undefined" && !repair[key].my) {
                 if (debug) console.log('findrepairsforroom > '+name+' > splice '+repair[key].structureType+' because its not mine');
@@ -382,6 +433,7 @@ var infrastructure = {
         if(!room.controller.my || room.controller.level < 3) {
             return false;
         }
+        this.planWalls(room);
         // roads around every extension, spawn, storage
         var structures = room.find(FIND_MY_STRUCTURES, {
                 filter: (structure) => 
@@ -720,7 +772,7 @@ var infrastructure = {
         Game.rooms[roomName].lookAt(x,y).forEach(function(lookObject) {
             if(lookObject.type == LOOK_STRUCTURES && lookObject.structure.structureType != STRUCTURE_RAMPART) {
                 isthereastructure = true;
-            }
+            } 
         });
         return isthereastructure;
 	},
@@ -736,6 +788,7 @@ var infrastructure = {
 	planRoad: function(roomName,x,y) {
         var isthereaconstructionorder = this.isthereaconstructionsite(roomName,x,y);
         var isthereastructure = this.isthereabuilding(roomName,x,y);
+        Memory.rooms[roomName].plannedRoads = Memory.rooms[roomName].plannedRoads || [];
         if(!isthereastructure) {
             if (!isthereaconstructionorder) {
                 let push = {x: x,y: y};

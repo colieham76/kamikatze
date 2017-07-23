@@ -38,6 +38,7 @@ var roleSiegeTank = {
                  || (
                      Game.flags["squad"+creep.memory.squad+"target"].pos.roomName == creep.room.name
                      && (creep.getActiveBodyparts(TOUGH)) * 100 > creep.memory.takendmg  * creep.pos.getRangeTo(creep.pos.findClosestByRange(FIND_EXIT))
+                     && !(takendmg == 0 && creep.hits != creep.hitsMax)
                     )
                 ) {
                     target = "squad"+creep.memory.squad+"target";

@@ -66,7 +66,7 @@ var squadManager = {
                     if (Game.flags['squad'+squad.squad+'staging'])
                         stagingsquadmembers = _.filter(this.prefilter, (creep) => creep.memory.squad == squad.squad && creep.pos.getRangeTo(Game.flags['squad'+squad.squad+'staging'].pos) <= 5 && creep.ticksToLive);
                     else
-                        stagingsquadmembers = _.filter(prefilter, (creep) => creep.memory.squad == squad.squad && creep.room.name == squad.stagingRoom && creep.ticksToLive);
+                        stagingsquadmembers = _.filter(this.prefilter, (creep) => creep.memory.squad == squad.squad && creep.room.name == squad.stagingRoom && creep.ticksToLive);
                     if (_.size(squadmembers) == _.size(stagingsquadmembers) || squad.isDefender)
                         squad.stagingComplete = true;
                     else
